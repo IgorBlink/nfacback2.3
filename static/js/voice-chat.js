@@ -7,6 +7,7 @@ class VoiceChat {
         this.isProcessing = false;
         this.isConnected = false;
         this.sessionId = null;
+        this.audioChunks = []; // Собираем все аудио здесь
         
         this.initElements();
         this.connectWebSocket();
@@ -106,19 +107,28 @@ class VoiceChat {
                 }
             });
 
-            // Настраиваем MediaRecorder
-            this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
+            // Очищаем предыдущие аудио данные
+            this.audioChunks = [];
 
+            // Настраиваем MediaRecorder (простой режим)
+            this.mediaRecorder = new MediaRecorder(this.audioStream);
+
+            // Собираем ВСЕ аудио данные в массив
             this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0 && this.ws.readyState === WebSocket.OPEN) {
-                    this.sendAudioChunk(event.data);
+                if (event.data.size > 0) {
+                    console.log('Audio chunk received:', event.data.size, 'bytes');
+                    this.audioChunks.push(event.data);
                 }
             };
 
-            // Начинаем запись
-            this.mediaRecorder.start(100); // Отправляем чанки каждые 100мс
+            // Когда запись завершена - отправляем все разом
+            this.mediaRecorder.onstop = () => {
+                console.log('MediaRecorder stopped, chunks count:', this.audioChunks.length);
+                this.sendCompleteAudio();
+            };
+
+            // Начинаем запись (БЕЗ timeslice - записываем все подряд)
+            this.mediaRecorder.start();
             this.isRecording = true;
             console.log('Recording started');
             
@@ -168,13 +178,8 @@ class VoiceChat {
         this.isProcessing = true; // Блокируем новые записи
         this.volumeBar.style.width = '0%';
 
-        // Сообщаем серверу о завершении записи
-        if (this.ws.readyState === WebSocket.OPEN) {
-            console.log('Sending audio_end to server');
-            this.ws.send(JSON.stringify({
-                type: 'audio_end'
-            }));
-        } else {
+        // НЕ отправляем audio_end сразу - ждем onstop события MediaRecorder
+        if (this.ws.readyState !== WebSocket.OPEN) {
             console.error('WebSocket not connected');
             this.isProcessing = false;
             this.updateStatus('error', 'Потеряно соединение с сервером');
@@ -210,7 +215,19 @@ class VoiceChat {
         updateVolume();
     }
 
-    sendAudioChunk(audioBlob) {
+    sendCompleteAudio() {
+        if (this.audioChunks.length === 0) {
+            console.error('No audio chunks to send');
+            this.isProcessing = false;
+            this.updateStatus('error', 'Не удалось записать аудио');
+            return;
+        }
+
+        // Объединяем все аудио чанки в один Blob
+        const completeAudioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        console.log('Complete audio blob size:', completeAudioBlob.size, 'bytes');
+
+        // Конвертируем в base64 и отправляем ОДНИМ сообщением
         const reader = new FileReader();
         reader.onload = () => {
             const base64Audio = btoa(
@@ -220,12 +237,27 @@ class VoiceChat {
                 )
             );
             
-            this.ws.send(JSON.stringify({
-                type: 'audio_chunk',
-                data: base64Audio
-            }));
+            console.log('Sending complete audio to server, base64 length:', base64Audio.length);
+            
+            if (this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({
+                    type: 'complete_audio',
+                    data: base64Audio
+                }));
+            } else {
+                console.error('WebSocket not connected when trying to send audio');
+                this.isProcessing = false;
+                this.updateStatus('error', 'Потеряно соединение с сервером');
+            }
         };
-        reader.readAsArrayBuffer(audioBlob);
+        
+        reader.onerror = () => {
+            console.error('Failed to read audio blob');
+            this.isProcessing = false;
+            this.updateStatus('error', 'Ошибка чтения аудио');
+        };
+        
+        reader.readAsArrayBuffer(completeAudioBlob);
     }
 
     handleMessage(message) {

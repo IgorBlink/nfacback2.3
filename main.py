@@ -8,7 +8,6 @@ import base64
 import logging
 from typing import Dict, List
 
-from services.audio_service import AudioService
 from services.gemini_service import GeminiService
 from services.speech_service import SpeechService
 from utils.connection_manager import ConnectionManager
@@ -27,9 +26,6 @@ gemini_service = GeminiService()
 speech_service = SpeechService()
 manager = ConnectionManager()
 
-# Аудио сервисы для каждого соединения
-audio_services = {}
-
 @app.get("/")
 async def get():
     """Главная страница приложения"""
@@ -42,23 +38,16 @@ async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint для голосового чата"""
     await manager.connect(websocket)
     
-    # Создаем отдельный audio_service для каждого соединения
-    audio_services[websocket] = AudioService()
-    
     try:
         while True:
             # Получаем аудио данные от клиента
             data = await websocket.receive_text()
             message = json.loads(data)
             
-            if message["type"] == "audio_chunk":
-                # Обрабатываем аудио чанк
+            if message["type"] == "complete_audio":
+                # Обрабатываем полное аудио ОДНИМ куском
                 audio_data = base64.b64decode(message["data"])
-                await process_audio_chunk(websocket, audio_data)
-                
-            elif message["type"] == "audio_end":
-                # Завершаем обработку аудио
-                await process_audio_end(websocket)
+                await process_complete_audio(websocket, audio_data)
                 
             elif message["type"] == "clear_history":
                 # Очищаем историю разговора
@@ -69,61 +58,25 @@ async def websocket_endpoint(websocket: WebSocket):
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        # Удаляем audio_service при отключении
-        if websocket in audio_services:
-            del audio_services[websocket]
         logger.info("Client disconnected")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
-        # Удаляем audio_service при ошибке
-        if websocket in audio_services:
-            del audio_services[websocket]
         manager.disconnect(websocket)
 
-async def process_audio_chunk(websocket: WebSocket, audio_data: bytes):
-    """Обработка аудио чанка"""
+async def process_complete_audio(websocket: WebSocket, audio_data: bytes):
+    """Обработка полного аудио файла"""
     try:
-        # Получаем audio_service для этого соединения
-        audio_service = audio_services.get(websocket)
-        if not audio_service:
-            return
-            
-        # Добавляем аудио в буфер
-        audio_service.add_audio_chunk(audio_data)
+        logger.info(f"Received complete audio: {len(audio_data)} bytes")
         
-        # Проверяем активность голоса
-        if audio_service.is_speech_detected():
-            await websocket.send_text(json.dumps({
-                "type": "speech_detected",
-                "status": "listening"
-            }))
-        
-    except Exception as e:
-        logger.error(f"Error processing audio chunk: {e}")
-
-async def process_audio_end(websocket: WebSocket):
-    """Обработка завершения аудио"""
-    try:
-        # Получаем audio_service для этого соединения
-        audio_service = audio_services.get(websocket)
-        if not audio_service:
-            logger.error("Audio service not found for websocket")
-            return
-            
-        # Получаем накопленное аудио
-        audio_buffer = audio_service.get_audio_buffer()
-        
-        logger.info(f"Audio buffer size: {len(audio_buffer) if audio_buffer else 0}")
-        
-        if not audio_buffer:
+        if not audio_data or len(audio_data) == 0:
             await websocket.send_text(json.dumps({
                 "type": "error",
                 "message": "Не удалось записать аудио"
             }))
             return
             
-        # Конвертируем речь в текст
-        text = await speech_service.speech_to_text(audio_buffer)
+        # Конвертируем речь в текст НАПРЯМУЮ
+        text = await speech_service.speech_to_text(audio_data)
         
         if text:
             logger.info(f"Transcribed text: {text}")
@@ -156,11 +109,8 @@ async def process_audio_end(websocket: WebSocket):
                 "message": "Не удалось распознать речь"
             }))
         
-        # Очищаем буфер
-        audio_service.clear_buffer()
-        
     except Exception as e:
-        logger.error(f"Error processing audio end: {e}")
+        logger.error(f"Error processing complete audio: {e}")
         await websocket.send_text(json.dumps({
             "type": "error",
             "message": "Ошибка обработки аудио"
