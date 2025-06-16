@@ -1,0 +1,44 @@
+# Dockerfile специально для Railway
+# Решает проблемы с Python 3.12 и distutils
+
+FROM python:3.11.7-slim
+
+# Переменные окружения для Python
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Обновляем систему и устанавливаем зависимости
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    portaudio19-dev \
+    python3-dev \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Рабочая директория
+WORKDIR /app
+
+# Сначала устанавливаем pip и базовые инструменты
+RUN pip install --no-cache-dir --upgrade pip==23.3.2
+
+# Устанавливаем setuptools с distutils
+RUN pip install --no-cache-dir 'setuptools[distutils]>=68.0.0' wheel>=0.40.0
+
+# Копируем и устанавливаем зависимости
+COPY requirements-prod.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копируем код приложения
+COPY . .
+
+# Создаем нужные директории
+RUN mkdir -p static/js templates
+
+# Порт
+EXPOSE 8000
+
+# Команда запуска
+CMD ["sh", "-c", "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"] 
