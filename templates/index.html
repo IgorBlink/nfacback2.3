@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice-to-Voice ИИ Агент</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status.waiting {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e9ecef;
+        }
+
+        .status.listening {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 2px solid #2196f3;
+            animation: pulse 2s infinite;
+        }
+
+        .status.processing {
+            background: #fff3e0;
+            color: #f57f17;
+            border: 2px solid #ff9800;
+        }
+
+        .status.speaking {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            border: 2px solid #9c27b0;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 2px solid #f44336;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .mic-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .mic-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .mic-button.inactive {
+            background: #667eea;
+            color: white;
+        }
+
+        .mic-button.active {
+            background: #f44336;
+            color: white;
+            animation: recording 1s infinite alternate;
+        }
+
+        @keyframes recording {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        .clear-button {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e9ecef;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-button:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .conversation {
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.ai {
+            background: #e3f2fd;
+            color: #1976d2;
+            margin-right: auto;
+        }
+
+        .message.transcription {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+
+        .connection-info {
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 20px;
+        }
+
+        .audio-controls {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .volume-indicator {
+            width: 100%;
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .volume-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #FFC107, #F44336);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 ИИ Агент</h1>
+        <p class="subtitle">Голосовой чат с Gemini</p>
+        
+        <div id="status" class="status waiting">
+            Подключение к серверу...
+        </div>
+
+        <div class="controls">
+            <button id="micButton" class="mic-button inactive" title="Нажмите и удерживайте для записи">
+                🎤
+            </button>
+            <button id="clearButton" class="clear-button" title="Очистить историю">
+                🗑️
+            </button>
+        </div>
+
+        <div class="volume-indicator">
+            <div id="volumeBar" class="volume-bar"></div>
+        </div>
+
+        <div id="conversation" class="conversation">
+            <div class="message ai">
+                Привет! Я голосовой ИИ-ассистент. Нажмите и удерживайте кнопку микрофона, чтобы начать разговор.
+            </div>
+        </div>
+
+        <div id="connectionInfo" class="connection-info">
+            Статус: Подключение...
+        </div>
+
+        <audio id="audioPlayer" preload="auto"></audio>
+    </div>
+
+    <script src="/static/js/voice-chat.js"></script>
+</body>
+</html> 
