@@ -16,20 +16,33 @@
 
 ### 1. Установка зависимостей
 
+**Автоматическая установка (рекомендуется):**
 ```bash
 # Клонируйте репозиторий
-git clone <your-repo>
-cd voice-ai-agent
+git clone https://github.com/IgorBlink/nfacback2.3.git
+cd nfacback2.3
 
-# Установите Python зависимости
+# Запустите скрипт установки
+python install.py
+```
+
+**Ручная установка:**
+```bash
+# Для Python 3.12+ сначала установите базовые инструменты
+pip install --upgrade pip setuptools>=68.0.0 wheel>=0.40.0
+
+# Затем установите основные зависимости
 pip install -r requirements.txt
+
+# Если проблемы с некоторыми пакетами:
+pip install -r requirements-py312.txt
 
 # Для macOS может потребоваться:
 brew install portaudio
 pip install pyaudio
 
 # Для Ubuntu/Debian:
-sudo apt-get install portaudio19-dev
+sudo apt-get install portaudio19-dev python3-dev
 pip install pyaudio
 ```
 

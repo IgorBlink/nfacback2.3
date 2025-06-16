@@ -1,0 +1,25 @@
+# Requirements для Python 3.12+
+# Сначала установите базовые инструменты
+setuptools>=68.0.0
+wheel>=0.40.0
+pip>=23.0.0
+
+# Основные зависимости
+fastapi==0.104.1
+uvicorn==0.24.0
+websockets==12.0
+google-generativeai==0.3.2
+speechrecognition==3.10.0
+pydub==0.25.1
+gtts==2.4.0
+numpy==1.24.3
+python-multipart==0.0.6
+jinja2==3.1.2
+aiofiles==23.2.1
+python-socketio==5.10.0
+
+# Проблемный пакет - устанавливать отдельно
+# webrtcvad==2.0.10  # Закомментировано - может вызывать проблемы
+
+# Альтернатива для PyAudio (если проблемы с установкой)
+# sounddevice>=0.4.6  # Альтернатива PyAudio 

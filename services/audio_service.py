@@ -1,4 +1,10 @@
-import webrtcvad
+try:
+    import webrtcvad
+    WEBRTCVAD_AVAILABLE = True
+except ImportError:
+    WEBRTCVAD_AVAILABLE = False
+    print("⚠️  webrtcvad не установлен. VAD будет отключен.")
+
 import numpy as np
 from pydub import AudioSegment
 from pydub.utils import make_chunks
@@ -16,9 +22,13 @@ class AudioService:
         self.frame_duration = frame_duration  # мс
         self.frame_size = int(sample_rate * frame_duration / 1000)
         
-        # Инициализация VAD
-        self.vad = webrtcvad.Vad()
-        self.vad.set_mode(3)  # Самый агрессивный режим
+        # Инициализация VAD (если доступен)
+        if WEBRTCVAD_AVAILABLE:
+            self.vad = webrtcvad.Vad()
+            self.vad.set_mode(3)  # Самый агрессивный режим
+        else:
+            self.vad = None
+            logger.warning("WebRTC VAD недоступен, используется упрощенная детекция речи")
         
         # Буфер для аудио
         self.audio_buffer = []
@@ -56,14 +66,23 @@ class AudioService:
                 if len(frame) < self.frame_duration:
                     continue
                 
-                # Конвертируем в PCM
-                pcm_data = frame.raw_data
-                
-                # Проверяем с помощью VAD
-                if len(pcm_data) == self.frame_size * 2:  # 2 байта на семпл
-                    is_speech = self.vad.is_speech(pcm_data, self.sample_rate)
+                if self.vad:
+                    # Используем WebRTC VAD если доступен
+                    pcm_data = frame.raw_data
                     
-                    if is_speech:
+                    # Проверяем с помощью VAD
+                    if len(pcm_data) == self.frame_size * 2:  # 2 байта на семпл
+                        is_speech = self.vad.is_speech(pcm_data, self.sample_rate)
+                        
+                        if is_speech:
+                            self.speech_frames.append(frame)
+                            self.silence_frames = 0
+                        else:
+                            self.silence_frames += 1
+                else:
+                    # Упрощенная детекция по уровню звука
+                    rms = frame.rms
+                    if rms > 200:  # Пороговое значение для детекции речи
                         self.speech_frames.append(frame)
                         self.silence_frames = 0
                     else:

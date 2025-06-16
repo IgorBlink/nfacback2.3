@@ -18,8 +18,8 @@ class GeminiService:
             
         genai.configure(api_key=api_key)
         
-        # Настройка модели
-        self.model = genai.GenerativeModel('gemini-pro')
+        # Настройка модели (используем новую версию gemini-2.0-flash)
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
         
         # История разговора
         self.conversation_history: List[dict] = []

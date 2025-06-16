@@ -7,10 +7,10 @@ class Config:
     # Gemini API
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
     
-    # Сервер
+    # Сервер  
     HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", "8000"))
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    PORT: int = int(os.getenv("PORT", "8000"))  # Railway автоматически установит PORT
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"  # По умолчанию False для продакшена
     
     # Аудио
     SAMPLE_RATE: int = int(os.getenv("SAMPLE_RATE", "16000"))

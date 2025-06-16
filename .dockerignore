@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+*.md
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Audio files
+*.wav
+*.mp3
+*.ogg
+temp_audio/
+
+# Development files
+install.py
+requirements-py312.txt
+start.py
+env_example.txt
+railway-env-vars.txt
+
+# Documentation
+README.md
+RAILWAY_DEPLOY.md 

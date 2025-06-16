@@ -1,0 +1,21 @@
+# Railway Environment Variables
+# Скопируйте эти переменные в Railway dashboard
+
+# ОБЯЗАТЕЛЬНО: получите ключ на https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Сервер (Railway автоматически установит PORT)
+HOST=0.0.0.0
+DEBUG=False
+
+# Аудио (оптимизированные настройки для продакшена)
+SAMPLE_RATE=16000
+FRAME_DURATION=30
+MAX_SILENCE_FRAMES=30
+
+# Логирование
+LOG_LEVEL=INFO
+
+# Railway автоматически установит:
+# PORT=8000 (или другой)
+# RAILWAY_ENVIRONMENT=production 
