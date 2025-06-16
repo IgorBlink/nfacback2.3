@@ -4,6 +4,7 @@ class VoiceChat {
         this.mediaRecorder = null;
         this.audioStream = null;
         this.isRecording = false;
+        this.isProcessing = false;
         this.isConnected = false;
         this.sessionId = null;
         
@@ -30,7 +31,7 @@ class VoiceChat {
         
         this.ws.onopen = () => {
             this.isConnected = true;
-            this.updateStatus('waiting', 'Готов к разговору. Нажмите микрофон для начала.');
+            this.updateStatus('waiting', '🎤 Нажмите микрофон чтобы начать говорить');
             this.updateConnectionInfo('Подключено');
         };
 
@@ -52,38 +53,37 @@ class VoiceChat {
     }
 
     setupEventListeners() {
-        // Обработка нажатия кнопки микрофона
-        this.micButton.addEventListener('mousedown', () => this.startRecording());
-        this.micButton.addEventListener('mouseup', () => this.stopRecording());
-        this.micButton.addEventListener('mouseleave', () => this.stopRecording());
+        // Обработка клика по кнопке микрофона - toggle запись
+        this.micButton.addEventListener('click', () => this.toggleRecording());
         
-        // Поддержка touch для мобильных устройств
-        this.micButton.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.startRecording();
-        });
-        this.micButton.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.stopRecording();
-        });
-
         // Очистка истории
         this.clearButton.addEventListener('click', () => this.clearConversation());
 
-        // Обработка клавиатуры (пробел для записи)
+        // Обработка клавиатуры (пробел для toggle записи)
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !this.isRecording) {
+            if (e.code === 'Space') {
                 e.preventDefault();
-                this.startRecording();
+                this.toggleRecording();
             }
         });
+    }
 
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'Space' && this.isRecording) {
-                e.preventDefault();
-                this.stopRecording();
-            }
-        });
+    toggleRecording() {
+        // Не позволяем начать запись если уже обрабатываем или говорит ИИ
+        if (this.isProcessing) {
+            // Визуально показываем что кнопка временно недоступна
+            this.micButton.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.micButton.style.transform = 'scale(1)';
+            }, 100);
+            return;
+        }
+        
+        if (this.isRecording) {
+            this.stopRecording();
+        } else {
+            this.startRecording();
+        }
     }
 
     async startRecording() {
@@ -115,9 +115,10 @@ class VoiceChat {
             this.mediaRecorder.start(100); // Отправляем чанки каждые 100мс
             this.isRecording = true;
             
-            this.updateStatus('listening', 'Слушаю... Отпустите кнопку когда закончите говорить.');
+            this.updateStatus('listening', '🎤 Записываю... Нажмите кнопку еще раз чтобы остановить.');
             this.micButton.classList.remove('inactive');
             this.micButton.classList.add('active');
+            this.micButton.innerHTML = '⏹️'; // Меняем иконку на стоп
 
             // Анализ звука для визуализации
             this.setupAudioAnalysis();
@@ -144,6 +145,8 @@ class VoiceChat {
         this.updateStatus('processing', 'Обрабатываю речь...');
         this.micButton.classList.remove('active');
         this.micButton.classList.add('inactive');
+        this.micButton.innerHTML = '🎤'; // Возвращаем иконку микрофона
+        this.isProcessing = true; // Блокируем новые записи
 
         // Сообщаем серверу о завершении записи
         if (this.ws.readyState === WebSocket.OPEN) {
@@ -228,6 +231,7 @@ class VoiceChat {
 
             case 'error':
                 this.updateStatus('error', message.message);
+                this.isProcessing = false; // Разблокируем после ошибки
                 break;
         }
     }
@@ -249,7 +253,8 @@ class VoiceChat {
             this.audioPlayer.play();
             
             this.audioPlayer.onended = () => {
-                this.updateStatus('waiting', 'Готов к следующему вопросу');
+                this.updateStatus('waiting', '🎤 Нажмите микрофон для следующего вопроса');
+                this.isProcessing = false; // Разблокируем новые записи
                 URL.revokeObjectURL(audioUrl);
             };
             
