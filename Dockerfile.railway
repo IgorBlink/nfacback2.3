@@ -7,28 +7,20 @@ FROM python:3.11.7-slim
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Обновляем систему и устанавливаем зависимости
+# Устанавливаем минимальные системные зависимости
 RUN apt-get update && apt-get install -y \
     gcc \
-    g++ \
-    make \
-    portaudio19-dev \
     python3-dev \
-    build-essential \
-    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Рабочая директория
 WORKDIR /app
 
-# Сначала устанавливаем pip и базовые инструменты
-RUN pip install --no-cache-dir --upgrade pip==23.3.2
+# Обновляем pip и устанавливаем базовые инструменты
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Устанавливаем setuptools с distutils
-RUN pip install --no-cache-dir 'setuptools[distutils]>=68.0.0' wheel>=0.40.0
-
-# Копируем и устанавливаем зависимости
-COPY requirements-prod.txt ./requirements.txt
+# Копируем и устанавливаем зависимости  
+COPY requirements-railway.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем код приложения

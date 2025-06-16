@@ -1,8 +1,7 @@
 # Production requirements для Railway
-# Базовые инструменты для Python 3.12+ (исправляет distutils проблему)
-setuptools[distutils]>=68.0.0
+# Базовые инструменты (без проблемных пакетов)
+setuptools>=68.0.0
 wheel>=0.40.0
-distutils-precedence
 
 # Основные зависимости - все стабильные
 fastapi==0.104.1
