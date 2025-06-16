@@ -69,8 +69,11 @@ class VoiceChat {
     }
 
     toggleRecording() {
+        console.log(`Toggle recording - current state: recording=${this.isRecording}, processing=${this.isProcessing}`);
+        
         // Не позволяем начать запись если уже обрабатываем или говорит ИИ
         if (this.isProcessing) {
+            console.log('Recording blocked - processing in progress');
             // Визуально показываем что кнопка временно недоступна
             this.micButton.style.transform = 'scale(0.95)';
             setTimeout(() => {
@@ -80,8 +83,10 @@ class VoiceChat {
         }
         
         if (this.isRecording) {
+            console.log('Stopping recording via toggle');
             this.stopRecording();
         } else {
+            console.log('Starting recording via toggle');
             this.startRecording();
         }
     }
@@ -89,6 +94,7 @@ class VoiceChat {
     async startRecording() {
         if (this.isRecording || !this.isConnected) return;
 
+        console.log('Starting recording...');
         try {
             // Получаем доступ к микрофону
             this.audioStream = await navigator.mediaDevices.getUserMedia({
@@ -114,6 +120,7 @@ class VoiceChat {
             // Начинаем запись
             this.mediaRecorder.start(100); // Отправляем чанки каждые 100мс
             this.isRecording = true;
+            console.log('Recording started');
             
             this.updateStatus('listening', '🎤 Записываю... Нажмите кнопку еще раз чтобы остановить.');
             this.micButton.classList.remove('inactive');
@@ -132,30 +139,46 @@ class VoiceChat {
     stopRecording() {
         if (!this.isRecording) return;
 
+        console.log('Stopping recording...');
         this.isRecording = false;
         
-        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-            this.mediaRecorder.stop();
+        // Принудительно останавливаем MediaRecorder
+        if (this.mediaRecorder) {
+            if (this.mediaRecorder.state === 'recording') {
+                this.mediaRecorder.stop();
+                console.log('MediaRecorder stopped');
+            }
+            this.mediaRecorder = null;
         }
 
+        // Останавливаем все треки аудио потока
         if (this.audioStream) {
-            this.audioStream.getTracks().forEach(track => track.stop());
+            this.audioStream.getTracks().forEach(track => {
+                track.stop();
+                console.log('Audio track stopped');
+            });
+            this.audioStream = null;
         }
 
+        // Обновляем UI
         this.updateStatus('processing', 'Обрабатываю речь...');
         this.micButton.classList.remove('active');
         this.micButton.classList.add('inactive');
         this.micButton.innerHTML = '🎤'; // Возвращаем иконку микрофона
         this.isProcessing = true; // Блокируем новые записи
+        this.volumeBar.style.width = '0%';
 
         // Сообщаем серверу о завершении записи
         if (this.ws.readyState === WebSocket.OPEN) {
+            console.log('Sending audio_end to server');
             this.ws.send(JSON.stringify({
                 type: 'audio_end'
             }));
+        } else {
+            console.error('WebSocket not connected');
+            this.isProcessing = false;
+            this.updateStatus('error', 'Потеряно соединение с сервером');
         }
-
-        this.volumeBar.style.width = '0%';
     }
 
     setupAudioAnalysis() {
